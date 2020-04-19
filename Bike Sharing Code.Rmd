@@ -1,0 +1,203 @@
+---
+title: "APA Group 1"
+author: "Yajing Li,Brian Cabello,Vera Chen, Elena Liang"
+output: 
+  html_document: 
+    keep_md: yes
+---
+
+```{r Read data, include=FALSE}
+bikeshare = read.csv("C:/Users/elena/Downloads/HW1 bikeshare.csv")
+```
+```{r Load Packages, include=FALSE}
+library('ggplot2')
+library('PerformanceAnalytics')
+```
+
+
+```{r Describe data, include=FALSE}
+summary(bikeshare)
+str(bikeshare)
+```
+
+
+```{r Explore correlation, include=FALSE}
+cor(bikeshare[c("temp","atemp","hum","windspeed")])
+```
+
+
+```{r Explore correlation of continuous vars, echo=FALSE, fig.width=3, fig.height=3, include=FALSE}
+chart.Correlation(bikeshare[c("temp","atemp","hum","windspeed")])
+# The variables "temp" and "atemp" are almost perfectly correlated so we are only going to keep "temp" in our model. 
+```
+
+
+```{r,fig.width=5, fig.height=3, echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(bikeshare, aes(cnt), color = "red", linetype = "dashed") + 
+  geom_histogram(color="black",fill = "lightblue") + 
+  geom_vline(aes(xintercept = mean(cnt))) +
+  theme_minimal() +
+  labs(x = "Total bike rentals", y = "Count", title = "Distribution of total bike rentals")
+```
+
+We can see from our data, a lot of time periods the number of daily rental bike is around 5000, along with the bike rental amount exceed 7500 the frequency times start decreasing and lower than 10 times.
+We first detected outliers in continuous variables, then replaced these outliers with the variable mean. Finally after converting categorical variables to factors we are ready to fit a model. 
+We have decided to model and predict the daily count of registered bike renters, as these users are loyal and more consistent with their renting patterns. 
+```{r, echo=FALSE, include=FALSE}   
+boxplot.stats(bikeshare$hum)$out
+boxplot.stats(bikeshare$windspeed)$out
+boxplot.stats(bikeshare$casual)$out
+par(mfrow=c(1,3))
+boxplot(bikeshare$hum, main="humidity",col=("lightblue"))
+boxplot(bikeshare$windspeed,main="windspeed",col=("lightblue"))
+boxplot(bikeshare$casual,main="casual",col=("lightblue"))
+```
+
+
+```{r, include=FALSE}
+outvars <- c("hum", "windspeed", "casual")
+
+bikeshare[outvars] <- data.frame(lapply(bikeshare[outvars], function(x){
+  ifelse(x %in% boxplot.stats(x)$out, NA, x)
+})) 
+
+for(i in outvars){
+  bikeshare[which(is.na(bikeshare[,i])), i] <- mean(bikeshare[,i], na.rm = TRUE)
+}
+sum(is.na(bikeshare))
+```
+
+```{r, include=FALSE}   
+str(bikeshare)
+bikeshare$season <- as.factor(bikeshare$season)
+bikeshare$yr <- as.factor(bikeshare$yr)
+bikeshare$mnth <- as.factor(bikeshare$mnth)
+bikeshare$holiday <- as.factor(bikeshare$holiday)
+bikeshare$weekday <- as.factor(bikeshare$weekday)
+bikeshare$workingday <- as.factor(bikeshare$workingday)
+bikeshare$weathersit <- as.factor(bikeshare$weathersit)
+str(bikeshare)
+```
+
+
+```{r, include=FALSE}
+#model preparation and analysis to choose dependent variable from "registered","casual","total"
+mod1 = lm(registered~ season+yr+mnth+holiday+weekday+workingday+weathersit+temp+atemp+hum+windspeed,data=bikeshare)
+summary(mod1)
+plot(mod1, which = 1)
+
+mod2 = lm(cnt~ season+yr+mnth+holiday+weekday+workingday+weathersit+temp+atemp+hum+windspeed,data=bikeshare)
+summary(mod2)
+plot(mod2, which = 1)
+
+mod3 = lm(casual~ season+yr+mnth+holiday+weekday+workingday+weathersit+temp+atemp+hum+windspeed,data=bikeshare)
+summary(mod3)
+plot(mod3, which = 1)
+
+#From statistical perspective, all three models are generally significant but model1 with "registered" as dependent variable has the highest R-quared ( "registered":0.8145 " "total count":0.7989  "casual":0.694)
+
+```
+
+
+
+```{r, include=FALSE}
+#Analysis to decide on dependent variables
+#The dependent variables we are given relate to either the day's date or weather conditions. We will test which variables are most important to keep in our model.
+mod4 = lm(registered~ yr+mnth+holiday+weekday,data=bikeshare)
+summary(mod4)
+plot(mod4, which = 1)
+
+mod5 = lm(registered~ yr+mnth+holiday+workingday,data=bikeshare)
+summary(mod5)
+plot(mod5, which = 1)
+
+mod6 = lm(registered~ season+yr+holiday+weekday,data=bikeshare)
+summary(mod6)
+plot(mod6, which = 1)
+
+mod7 = lm(registered~ season+yr+holiday+workingday,data=bikeshare)
+summary(mod7)
+plot(mod7, which = 1)
+
+#decide on 'yr+month+weekday' as date variable.
+#for business use, it is more accurate than seasons, because CEO will want to know monthly forecasting instead of seasonal one.
+```
+
+
+```{r, include=FALSE}
+mod10 = lm(registered~ yr+mnth+holiday+weekday+temp+weathersit*hum+windspeed,data=bikeshare)
+summary(mod10)
+plot(mod10, which = 1)
+#From the Adjusted R-squared, our model is able to predict 82% of the variability in daily registered users. Furthermore, the model has a large F-statistic with a p-value close to 0, meaning our model is significant in predicting the number of daily registered users.
+```
+
+
+
+
+# Season
+```{r, echo=FALSE,fig.width=6, fig.height=3}
+boxplot(registered~season,xaxt="none", data=bikeshare, notch=TRUE, 
+  col=(c("lightblue","skyblue","blue","darkblue")),
+  main="Registered Users by Season", xlab="Season")
+axis(side = 1, at = 1:4, labels = c("spring", "summer", "fall", "winter"))
+```
+
+The numbers of bike rentals in fall and summer are high, winter's bike rental number is also high while spring has the lowest number of bike rentals. We think this is because of spring has most dynamic and worst weather.
+
+# Time
+```{r, echo=FALSE,fig.width=6, fig.height=3}
+par(mfrow=c(1,2))
+boxplot(registered~workingday, xaxt="none", xlab="", data=bikeshare, notch=TRUE, 
+  col=(c("blue","lightblue")),
+  main="By Workday/Weekend")
+axis(side = 1, at = 1:2, labels = c("weekend", "workday"))
+
+boxplot(registered~holiday , xaxt="none", xlab="", data=bikeshare, notch=TRUE, 
+  col=(c("blue","lightblue")),
+  main="By Holiday/Not Holiday")
+axis(side = 1, at = 1:2, labels = c("not holiday", "holiday"))
+```
+
+Bike rentals tends to have higher user amount in workday than weekend, this might because these share bikes customers are mainly work professional and use bike as their communte tool to work. Share bike company should putting more bike in business district during workdays and around transportation station such as DART/Bus station.
+Number of bike rental by holiday/ non holiday. Bike rentals amount are higher in not holiday date compare with holiday. This can validate my guess in first graph so I think the main customer for share bike is working professional. 
+
+
+# Temperature
+```{r, echo=FALSE,fig.width=5, fig.height=2.5}
+ggplot(bikeshare, aes(temp, registered), color = "blue") + geom_point(color = "blue", alpha = 0.4) +
+  geom_smooth(method = "lm", color = "red", se = FALSE, size = 1) + theme_minimal()+
+  labs(x= "Temperature (in Celsius)", y = "Number of registered bike rentals") +
+  ggtitle("Number of registered bike rentals by temperature") 
+```
+
+We can see there is a positive correlation of temperture and number of bike rentals. The graph shows that along with temperture increase, number of registered bike rentals will increase.
+
+
+
+# Bike rental by date
+```{r, echo=FALSE,fig.width=5, fig.height=2.5}
+ggplot(bikeshare, aes(dteday, registered)) + geom_point(color = "blue", alpha = 0.4) + 
+  geom_smooth(method = "lm", color = "red", se = FALSE) + 
+  theme_minimal() + 
+  labs(x = "Date", y = "Number of registered bike rentals") + 
+  ggtitle("Number of registered bike rentals by date")
+``` 
+
+From this graph, we can see there is a fluctuation between the number of registered bike rentals and date. This might because of seasonality, the higher dot could be autumn and the lowest time is spring.
+
+# Conclusion
+Final Regression Model:registered=year+month+holiday+weekday+temperature+[weather type]*humidity+windspeed
+
+From the Adjusted R-squared, our model is able to predict 82% of the variability in daily registered users. Furthermore, the model has a large F-statistic with a p-value close to 0, meaning our model is significant in predicting the number of daily registered users.
+In the future, we can predict the number of registered users based on the data of those variables.
+  
+Given certain variables relating to the day's date and the weather conditions, this model predicts the daily number of rentals from registered users. Registered users are our most loyal customers with more predictable renting patterns than casual users. Therefore, this model serves as a minimum total daily rentals forecast, as we expect additional daily rentals from casual users as well.  
+
+Year1 has an incremntal impact on registered users compared to year0. This is great, meaning our business is expanding. However, there is hardly time to celebrate, as we identified opportunity to keep expanding.
+
+We have identified characteristics of both peak rental days and slow rental days based on weather conditions. On bad weather days and the weekend we can send out promotions for discounted rentals to drive revenues higher on these expected slow days. 
+
+
+
+
+
