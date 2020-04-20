@@ -1,4 +1,6 @@
-# ========================================
+Bike sharing systems are new generation of traditional bike rentals where whole process from membership, rental and return back has become automatic. Through these systems, user is able to easily rent a bike from a particular position and return back at another position. Bike-sharing rental process is highly correlated to the environmental and seasonal settings. For instance, weather conditions, precipitation, day of week, season, hour of the day, etc. can aﬀect the rental behaviors. The core data set is related to the two-year historical log corresponding to years 2011 and 2012.
+
+
 Dataset characteristics
 =========================================	
 	
